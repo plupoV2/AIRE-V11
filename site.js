@@ -1,0 +1,24 @@
+(() => {
+  const y = document.getElementById("year");
+  if (y) y.textContent = new Date().getFullYear();
+  // Inline SVG logo
+  const nodes = document.querySelectorAll(".logo");
+  nodes.forEach(n => { n.innerHTML = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#5B8CFF"/>
+    <stop offset="1" stop-color="#8B5CFF"/>
+  </linearGradient>
+  <linearGradient id="g2" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#7CF7C4"/>
+    <stop offset="1" stop-color="#5B8CFF"/>
+  </linearGradient>
+</defs>
+<rect x="6" y="6" width="52" height="52" rx="16" fill="rgba(255,255,255,0.06)" stroke="rgba(30,46,79,0.9)"/>
+<path d="M18 40c6-14 9-18 16-18s10 4 12 10" fill="none" stroke="url(#g2)" stroke-width="4" stroke-linecap="round"/>
+<path d="M18 34c6-10 10-14 16-14s10 3 12 8" fill="none" stroke="url(#g1)" stroke-width="4" stroke-linecap="round"/>
+<circle cx="18" cy="40" r="3" fill="#7CF7C4"/>
+<circle cx="46" cy="32" r="3" fill="#5B8CFF"/>
+</svg>
+`; });
+})();

@@ -1,0 +1,9 @@
+streamlit>=1.33
+pandas>=2.0
+requests>=2.31
+matplotlib>=3.7
+fastapi>=0.110
+uvicorn>=0.27
+stripe>=8.0
+
+reportlab>=4.0

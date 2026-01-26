@@ -1,0 +1,10 @@
+PROPRIETARY LICENSE (DRAFT)
+---------------------------
+Copyright (c) 2026
+All rights reserved.
+
+This software is proprietary and confidential. Unauthorized copying, modification,
+distribution, or commercial use is prohibited without explicit written permission
+from the owner.
+
+(Replace this draft with your attorney’s final license before selling.)
