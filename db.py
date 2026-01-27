@@ -1,8 +1,12 @@
 import os
 import sqlite3
+import time
 from typing import Any, Iterable, Optional, Tuple, List, Dict
 
 _BACKEND = None  # "sqlite" or "postgres"
+
+def now() -> int:
+    return int(time.time())
 
 def backend() -> str:
     global _BACKEND
