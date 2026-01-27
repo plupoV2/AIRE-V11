@@ -1,8 +1,12 @@
 import os
 import sqlite3
+import time
 from typing import Any, Iterable, Optional, Tuple, List, Dict
 
 _BACKEND = None  # "sqlite" or "postgres"
+
+def now() -> int:
+    return int(time.time())
 
 def backend() -> str:
     global _BACKEND
@@ -16,7 +20,7 @@ def backend() -> str:
     return _BACKEND
 
 def _sqlite_conn() -> sqlite3.Connection:
-    path = os.getenv("SQLITE_PATH", "aire.db")
+    path = os.getenv("SQLITE_PATH", "/tmp/aire.db")
     conn = sqlite3.connect(path, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
