@@ -79,6 +79,16 @@ from storage import (
 from templates import BUILTIN_TEMPLATES, normalize_template
 from styles import EXCHANGE_UI_CSS
 
+# Secrets / Config
+cfg = load_config()
+issues = validate_config(cfg)
+RENTCAST_APIKEY = cfg.rentcast_apikey
+ESTATED_TOKEN = cfg.estated_token
+ATTOM_APIKEY = cfg.attom_apikey
+OPENAI_API_KEY = cfg.openai_api_key
+SENDGRID_API_KEY = cfg.sendgrid_api_key
+ALERT_EMAIL_TO = cfg.alert_email_to
+
 stripe.api_key = cfg.stripe_secret_key or st.secrets.get("STRIPE_SECRET_KEY", "")
 
 st.set_page_config(page_title="AIRE Terminal", page_icon="⚡", layout="wide", initial_sidebar_state="expanded")
@@ -86,29 +96,29 @@ st.set_page_config(page_title="AIRE Terminal", page_icon="⚡", layout="wide", i
 st.markdown(r"""
 <style>
 :root{
-  --bg: #0b1220;
-  --panel: #0f1b33;
-  --panel2: #0c1730;
-  --card: #0f1f3f;
-  --border: rgba(255,255,255,.10);
-  --text: rgba(255,255,255,.92);
-  --muted: rgba(255,255,255,.68);
-  --brand: #57a6ff;
-  --brand2: #7c5cff;
-  --shadow: 0 16px 48px rgba(0,0,0,.35);
-  --radius: 16px;
+  --bg: #f4f7fb;
+  --panel: #ffffff;
+  --panel2: #f7f9fc;
+  --card: #ffffff;
+  --border: rgba(23,34,59,.12);
+  --text: #1a2438;
+  --muted: #667089;
+  --brand: #3f7ddb;
+  --brand2: #6aa9ff;
+  --shadow: 0 20px 50px rgba(32,56,93,.12);
+  --radius: 18px;
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
 }
 html, body, [class*="css"] { font-family: var(--font) !important; }
 .stApp{
-  background: radial-gradient(1400px 900px at 10% 10%, rgba(87,166,255,.18), transparent 60%),
-              radial-gradient(1200px 800px at 90% 30%, rgba(124,92,255,.14), transparent 55%),
+  background: radial-gradient(1200px 800px at 8% 10%, rgba(95,135,210,.10), transparent 60%),
+              radial-gradient(1000px 700px at 92% 20%, rgba(125,169,237,.12), transparent 55%),
               var(--bg);
   color: var(--text);
 }
 section[data-testid="stSidebar"]{
-  background: linear-gradient(180deg, rgba(15,27,51,.95), rgba(11,18,32,.98));
-  border-right: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(245,248,252,.98));
+  border-right: 1px solid rgba(23,34,59,.08);
 }
 section[data-testid="stSidebar"] * { color: var(--text) !important; }
 section[data-testid="stSidebar"] .stMarkdown p { color: var(--muted) !important; }
@@ -125,7 +135,7 @@ h2{ font-size: 1.35rem; }
 h3{ font-size: 1.12rem; color: var(--text); }
 
 .card{
-  background: linear-gradient(180deg, rgba(15,31,63,.92), rgba(11,26,55,.92));
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px 18px 16px 18px;
@@ -133,8 +143,8 @@ h3{ font-size: 1.12rem; color: var(--text); }
   margin: 10px 0 14px 0;
 }
 .card-soft{
-  background: linear-gradient(180deg, rgba(15,31,63,.70), rgba(11,26,55,.72));
-  border: 1px solid rgba(255,255,255,.08);
+  background: var(--panel2);
+  border: 1px solid rgba(23,34,59,.08);
   border-radius: var(--radius);
   padding: 16px;
 }
@@ -142,40 +152,43 @@ h3{ font-size: 1.12rem; color: var(--text); }
 div[data-baseweb="input"] > div,
 div[data-baseweb="textarea"] > div,
 div[data-baseweb="select"] > div{
-  background: rgba(255,255,255,.06) !important;
-  border: 1px solid rgba(255,255,255,.14) !important;
-  border-radius: 12px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(23,34,59,.14) !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 2px rgba(16,24,40,.04);
 }
 input, textarea { color: var(--text) !important; }
-label { color: var(--muted) !important; }
+label { color: var(--muted) !important; font-weight: 700 !important; }
 
 .stButton button{
-  border-radius: 14px !important;
-  border: 1px solid rgba(255,255,255,.14) !important;
-  background: linear-gradient(90deg, rgba(87,166,255,.92), rgba(124,92,255,.92)) !important;
-  color: #061025 !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(63,125,219,.2) !important;
+  background: linear-gradient(90deg, #3f7ddb, #6aa9ff) !important;
+  color: #ffffff !important;
   font-weight: 800 !important;
-  padding: 0.62rem 0.9rem !important;
-  box-shadow: 0 10px 26px rgba(87,166,255,.18);
+  padding: 0.68rem 1.2rem !important;
+  box-shadow: 0 12px 32px rgba(63,125,219,.28);
 }
 .stButton button:hover{
   transform: translateY(-1px);
-  filter: brightness(1.05);
+  filter: brightness(1.03);
 }
 
 [data-testid="stMetric"]{
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(23,34,59,.08);
+  border-radius: 16px;
   padding: 12px 14px;
+  box-shadow: 0 10px 20px rgba(32,56,93,.08);
 }
 
 .stTabs [data-baseweb="tab-list"]{
   gap: 8px;
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.08);
+  background: #ffffff;
+  border: 1px solid rgba(23,34,59,.08);
   padding: 8px;
-  border-radius: 14px;
+  border-radius: 16px;
+  box-shadow: inset 0 1px 2px rgba(16,24,40,.04);
 }
 .stTabs [data-baseweb="tab"]{
   border-radius: 12px !important;
@@ -183,25 +196,28 @@ label { color: var(--muted) !important; }
   color: var(--muted) !important;
 }
 .stTabs [aria-selected="true"]{
-  background: rgba(87,166,255,.14) !important;
+  background: rgba(63,125,219,.12) !important;
   color: var(--text) !important;
-  border: 1px solid rgba(87,166,255,.22) !important;
+  border: 1px solid rgba(63,125,219,.24) !important;
 }
 
 div[data-testid="stDataFrame"], .stDataFrame{
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 14px;
+  border: 1px solid rgba(23,34,59,.08);
+  border-radius: 16px;
   overflow: hidden;
+  background: #ffffff;
 }
 .stAlert{
   border-radius: 14px !important;
-  border: 1px solid rgba(255,255,255,.10) !important;
+  border: 1px solid rgba(23,34,59,.10) !important;
+  background: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(32,56,93,.08);
 }
 .kicker{ color: var(--muted); font-size: 0.92rem; }
 .badge{
   display:inline-block; padding:4px 10px; border-radius:999px;
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
+  border:1px solid rgba(23,34,59,.12);
+  background: rgba(63,125,219,.08);
   color: var(--muted);
   font-size: 0.82rem;
 }
@@ -209,44 +225,34 @@ div[data-testid="stDataFrame"], .stDataFrame{
 .bcrumb{
   display:flex; align-items:center; gap:10px;
   padding:10px 12px; border-radius: 14px;
-  border:1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.04);
+  border:1px solid rgba(23,34,59,.10);
+  background: #ffffff;
   margin: 6px 0 10px 0;
 }
 .bstep{
   display:flex; align-items:center; gap:8px;
   padding:6px 10px; border-radius: 999px;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.03);
-  color: rgba(255,255,255,.72);
+  border:1px solid rgba(23,34,59,.12);
+  background: rgba(63,125,219,.08);
+  color: var(--muted);
   font-weight: 800; font-size: 0.86rem;
 }
 .bstep.on{
-  background: rgba(87,166,255,.16);
-  border-color: rgba(87,166,255,.22);
-  color: rgba(255,255,255,.92);
+  background: rgba(63,125,219,.18);
+  border-color: rgba(63,125,219,.24);
+  color: var(--text);
 }
 .bdot{
   width:10px; height:10px; border-radius: 999px;
-  background: rgba(255,255,255,.18);
+  background: rgba(26,36,56,.18);
 }
 .bstep.on .bdot{
-  background: linear-gradient(90deg, rgba(87,166,255,.95), rgba(124,92,255,.95));
+  background: linear-gradient(90deg, #3f7ddb, #6aa9ff);
 }
-.barrow{ color: rgba(255,255,255,.45); font-weight: 900; }
+.barrow{ color: rgba(26,36,56,.45); font-weight: 900; }
 </style>
 """, unsafe_allow_html=True)
 st.markdown(EXCHANGE_UI_CSS, unsafe_allow_html=True)
-
-# Secrets / Config
-cfg = load_config()
-issues = validate_config(cfg)
-RENTCAST_APIKEY = cfg.rentcast_apikey
-ESTATED_TOKEN = cfg.estated_token
-ATTOM_APIKEY = cfg.attom_apikey
-OPENAI_API_KEY = cfg.openai_api_key
-SENDGRID_API_KEY = cfg.sendgrid_api_key
-ALERT_EMAIL_TO = cfg.alert_email_to
 
 import rentcast as rc
 import estated as es
@@ -524,11 +530,33 @@ def run_one(raw: str, template: Dict[str, Any], manual: Dict[str, Any], use_auto
     out = run_underwriting(i)
     memo = generate_investment_memo(out.narrative_seed, OPENAI_API_KEY) if (use_ai and OPENAI_API_KEY) else None
 
+    metrics_summary = {
+        "cap_rate": out.metrics.get("CapRate"),
+        "cash_on_cash": out.metrics.get("CoC"),
+        "dscr": out.metrics.get("DSCR"),
+        "irr": out.metrics.get("IRR"),
+        "noi_monthly": (out.metrics.get("NOI") / 12.0) if isinstance(out.metrics.get("NOI"), (int, float)) else None,
+        "payment_monthly": out.metrics.get("LoanPaymentMonthly"),
+        "cashflow_monthly": out.metrics.get("CashFlowMonthly"),
+    }
+
     payload = {
         "inputs": i.__dict__,
         "outputs": {
-            "score": out.score, "grade": out.grade, "verdict": out.verdict,
-            "confidence": out.confidence, "metrics": out.metrics, "flags": out.flags, "memo": memo
+            "score": out.score,
+            "score_base": out.score_base,
+            "score_ai": out.score_ai,
+            "ai_weight": out.ai_weight,
+            "grade": out.grade,
+            "grade_detail": out.grade_detail,
+            "verdict": out.verdict,
+            "confidence": out.confidence,
+            "metrics": out.metrics,
+            "metrics_summary": metrics_summary,
+            "flags": out.flags,
+            "rationale": out.rationale,
+            "ai_meta": out.ai_meta,
+            "memo": memo,
         },
         "sources": pulled.get("notes", []) if isinstance(pulled, dict) else [],
         "provenance": prov
@@ -537,15 +565,28 @@ def run_one(raw: str, template: Dict[str, Any], manual: Dict[str, Any], use_auto
     log_event("grade_saved", report_id=rid, grade=out.grade, score=out.score, confidence=out.confidence)
 
     return {
-        "address": addr, "url": url, "grade": out.grade, "score": out.score,
-        "confidence": out.confidence, "verdict": out.verdict,
+        "address": addr,
+        "url": url,
+        "grade": out.grade,
+        "grade_detail": out.grade_detail,
+        "score": out.score,
+        "score_base": out.score_base,
+        "score_ai": out.score_ai,
+        "ai_weight": out.ai_weight,
+        "confidence": out.confidence,
+        "verdict": out.verdict,
         "cap_rate": out.metrics.get("CapRate"),
         "coc": out.metrics.get("CoC"),
         "dscr": out.metrics.get("DSCR"),
         "irr": out.metrics.get("IRR"),
         "price": i.price, "rent": i.monthly_rent, "expenses": i.monthly_expenses,
         "sources": ", ".join(payload["sources"]) if payload["sources"] else "Manual / none",
-        "report_id": rid, "memo": memo, "flags": "; ".join(out.flags[:6]) if out.flags else "",
+        "metrics": metrics_summary,
+        "report_id": rid,
+        "memo": memo,
+        "flags": "; ".join(out.flags[:6]) if out.flags else "",
+        "rationale": out.rationale,
+        "ai_meta": out.ai_meta,
         "payload": payload
     }
 
@@ -764,37 +805,97 @@ if page_key == "Grade a Deal":
             elif r.get("error"):
                 st.error(r["error"])
             else:
-                # Topline grade + confidence
+                src_short = "API" if "RentCast" in r.get("sources","") else ("Mixed" if "API" in (r.get("sources","")) else "Manual")
+                grade_display = r.get("grade_detail", r["grade"])
                 st.markdown(
-                    f'<div class="gradepill"><span style="font-size:12px;opacity:.8;">Grade</span> '
-                    f'<span class="biggrade">{r["grade"]}</span> '
-                    f'<span style="opacity:.7;font-weight:900;">{r["verdict"]}</span></div>',
+                    f"""
+                    <div class="gradehero">
+                      <div class="gradecopy">
+                        <div class="gradelabel">Investment Grade</div>
+                        <div class="gradevalue">{grade_display}</div>
+                        <div class="gradeverdict">{r["verdict"]}</div>
+                      </div>
+                      <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <span class="badge-soft">Score: {r['score']:.1f}/100</span>
+                        <span class="badge-soft">Confidence: {int(r['confidence']*100)}%</span>
+                        <span class="badge-soft">Data: {src_short}</span>
+                      </div>
+                    </div>
+                    """,
                     unsafe_allow_html=True,
                 )
 
                 t_over, t_details, t_export = st.tabs(["Overview", "Details", "Export"])
 
                 with t_over:
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("Score", f"{r['score']:.1f}/100")
-                    m2.metric("Confidence", f"{int(r['confidence']*100)}%")
-                    src_short = "API" if "RentCast" in r.get("sources","") else ("Mixed" if "API" in (r.get("sources","")) else "Manual")
-                    m3.metric("Data", src_short)
+                    st.markdown(
+                        f"""
+                        <div class="report-grid">
+                          <div class="report-card">
+                            <h4>Key metrics</h4>
+                            <div class="metric-list">
+                              <span>Cap rate: <strong>{pct(r.get('cap_rate'))}</strong></span>
+                              <span>Cash-on-cash: <strong>{pct(r.get('coc'))}</strong></span>
+                              <span>DSCR: <strong>{num(r.get('dscr'))}</strong></span>
+                              <span>IRR (est.): <strong>{pct(r.get('irr'))}</strong></span>
+                            </div>
+                          </div>
+                          <div class="report-card">
+                            <h4>Score blend</h4>
+                            <div class="scoreblend">
+                              <span class="pill">Base: {r.get('score_base', 0.0):.1f}/100</span>
+                              <span class="pill">AI: {r.get('score_ai', 0.0):.1f}/100</span>
+                              <span class="pill">AI weight: {int((r.get('ai_weight') or 0.0)*100)}%</span>
+                            </div>
+                            <div style="margin-top:8px; color:var(--muted); font-size:12px;">
+                              Proprietary blend: base underwriting + AI signal.
+                            </div>
+                          </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
 
-                    st.markdown("#### Key metrics")
-                    k1, k2 = st.columns(2)
-                    with k1:
-                        st.write(f"- Cap rate: **{pct(r.get('cap_rate'))}**")
-                        st.write(f"- Cash-on-cash: **{pct(r.get('coc'))}**")
-                    with k2:
-                        st.write(f"- DSCR: **{num(r.get('dscr'))}**")
-                        st.write(f"- IRR (est.): **{pct(r.get('irr'))}**")
-
-                    if r.get("flags"):
-                        st.markdown("#### Flags")
-                        for f in r["flags"].split(";"):
-                            if f.strip():
-                                st.write(f"- {f.strip()}")
+                    rationale = r.get("rationale") or (r.get("payload") or {}).get("outputs", {}).get("rationale") or []
+                    flags = [f.strip() for f in (r.get("flags") or "").split(";") if f.strip()]
+                    if rationale or flags:
+                        st.markdown(
+                            """
+                            <div class="report-grid" style="margin-top:12px;">
+                              <div class="report-card">
+                                <h4>Grade rationale</h4>
+                                <div class="bullet-list">
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        if rationale:
+                            for reason in rationale[:10]:
+                                st.markdown(f"<div>{reason}</div>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("<div>Rationale unavailable.</div>", unsafe_allow_html=True)
+                        st.markdown(
+                            """
+                                </div>
+                              </div>
+                              <div class="report-card">
+                                <h4>Risk flags</h4>
+                                <div class="bullet-list">
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        if flags:
+                            for f in flags[:10]:
+                                st.markdown(f"<div>{f}</div>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("<div>No flags.</div>", unsafe_allow_html=True)
+                        st.markdown(
+                            """
+                                </div>
+                              </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
 
                     if r.get("memo"):
                         st.markdown("#### AI summary")
@@ -829,11 +930,15 @@ if page_key == "Grade a Deal":
                     flags_md = "- None"
                     if r.get("flags"):
                         flags_md = "- " + "\n- ".join([x.strip() for x in r["flags"].split(";") if x.strip()])
+                    grade_display = r.get("grade_detail", r["grade"])
+                    rationale_md = "- None"
+                    if r.get("rationale"):
+                        rationale_md = "- " + "\n- ".join([str(x) for x in r["rationale"] if str(x).strip()])
                     md = f"""# AIRE Report
 
 **Address:** {r['address']}
 
-**Grade:** {r['grade']} ({r['score']:.1f}/100)
+**Grade:** {grade_display} ({r['score']:.1f}/100)
 
 **Verdict:** {r['verdict']}
 
@@ -845,6 +950,9 @@ if page_key == "Grade a Deal":
 
 ## Flags
 {flags_md}
+
+## Grade Rationale
+{rationale_md}
 """
                     col_b.download_button("Download Markdown", md.encode("utf-8"), f"aire_report_{r['report_id']}.md", "text/markdown", use_container_width=True)
                     col_c.download_button(
@@ -887,7 +995,7 @@ if page_key == "Batch Screener":
             st.error("No successful rows.")
         else:
             df = df.sort_values(["score","confidence"], ascending=[False, False])
-            cols = ["grade","score","confidence","verdict","address","cap_rate","coc","dscr","irr","price","rent","expenses","sources","flags","report_id"]
+            cols = ["grade_detail","grade","score","confidence","verdict","address","cap_rate","coc","dscr","irr","price","rent","expenses","sources","flags","report_id"]
             cols = [c for c in cols if c in df.columns]
             st.markdown('<div class="tablewrap">', unsafe_allow_html=True)
             st.dataframe(df[cols], use_container_width=True, hide_index=True)
@@ -898,7 +1006,8 @@ if page_key == "Batch Screener":
                 st.divider()
                 st.markdown("### AI summaries (Top 5)")
                 for row in df.head(5).to_dict("records"):
-                    st.markdown(f"#### {row['address']} — {row['grade']} ({row['score']:.1f})")
+                    grade_display = row.get("grade_detail") or row.get("grade")
+                    st.markdown(f"#### {row['address']} — {grade_display} ({row['score']:.1f})")
                     memo = generate_investment_memo((row.get("payload") or {}).get("outputs", {}), OPENAI_API_KEY)
                     st.write(memo or "AI summary unavailable.")
 
