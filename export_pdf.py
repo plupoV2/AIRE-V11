@@ -22,14 +22,19 @@ def build_report_pdf(report: Dict[str, Any]) -> bytes:
     c.setFont("Helvetica-Bold", 12)
     c.drawString(0.75*inch, h-1.40*inch, _safe(report.get("address")))
 
+    grade_display = report.get("grade_detail") or report.get("grade")
     c.setFont("Helvetica-Bold", 36)
-    c.drawString(0.75*inch, h-2.05*inch, _safe(report.get("grade")))
+    c.drawString(0.75*inch, h-2.05*inch, _safe(grade_display))
     c.setFont("Helvetica", 12)
     c.drawString(1.55*inch, h-1.95*inch, f"Score: {_safe(report.get('score'))}/100")
     c.setFont("Helvetica-Bold", 12)
     c.drawString(1.55*inch, h-2.15*inch, _safe(report.get("verdict")))
 
-    metrics = report.get("metrics") or {}
+    metrics = (
+        report.get("metrics")
+        or (report.get("payload") or {}).get("outputs", {}).get("metrics_summary")
+        or {}
+    )
     y = h-2.70*inch
     c.setFont("Helvetica-Bold", 12)
     c.drawString(0.75*inch, y, "Key Metrics")
@@ -58,6 +63,18 @@ def build_report_pdf(report: Dict[str, Any]) -> bytes:
     else:
         for f in flags[:10]:
             line("•", f)
+
+    y -= 0.08*inch
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(0.75*inch, y, "Grade Rationale")
+    y -= 0.18*inch
+    c.setFont("Helvetica", 10)
+    rationale = report.get("rationale") or (report.get("payload") or {}).get("outputs", {}).get("rationale") or []
+    if not rationale:
+        line("•", "None")
+    else:
+        for r in list(rationale)[:8]:
+            line("•", r)
 
     y -= 0.08*inch
     c.setFont("Helvetica-Bold", 12)
