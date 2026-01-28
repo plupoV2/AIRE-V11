@@ -3,9 +3,11 @@ from typing import Any, Dict, List, Optional
 import json
 
 import importlib
+from functools import lru_cache
 import time
 
 
+@lru_cache(maxsize=1)
 def _db():
     return importlib.import_module("db")
 
