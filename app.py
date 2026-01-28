@@ -18,6 +18,7 @@ from feedback import add_feedback, list_feedback
 from model_registry import list_models, create_candidate_model, activate_model, get_active_model
 import learning
 import audit
+from key_vault import get_keys as get_vault_keys, set_key as set_vault_key, delete_key as delete_vault_key
 
 def count_linked_outcomes(workspace_id: int) -> int:
     """Counts outcomes with a valid report_id (linked), for guardrails."""
@@ -88,6 +89,22 @@ ATTOM_APIKEY = cfg.attom_apikey
 OPENAI_API_KEY = cfg.openai_api_key
 SENDGRID_API_KEY = cfg.sendgrid_api_key
 ALERT_EMAIL_TO = cfg.alert_email_to
+
+def _resolve_key(name: str, fallback: str = "") -> str:
+    vault = st.session_state.get("integration_keys", {})
+    if isinstance(vault, dict):
+        return (vault.get(name) or "").strip() or fallback
+    return fallback
+
+def _refresh_integration_keys(workspace_id: int) -> None:
+    st.session_state.integration_keys = get_vault_keys(int(workspace_id))
+    global RENTCAST_APIKEY, ESTATED_TOKEN, ATTOM_APIKEY, OPENAI_API_KEY, SENDGRID_API_KEY, ALERT_EMAIL_TO
+    RENTCAST_APIKEY = _resolve_key("RENTCAST_APIKEY", cfg.rentcast_apikey)
+    ESTATED_TOKEN = _resolve_key("ESTATED_TOKEN", cfg.estated_token)
+    ATTOM_APIKEY = _resolve_key("ATTOM_APIKEY", cfg.attom_apikey)
+    OPENAI_API_KEY = _resolve_key("OPENAI_API_KEY", cfg.openai_api_key)
+    SENDGRID_API_KEY = _resolve_key("SENDGRID_API_KEY", cfg.sendgrid_api_key)
+    ALERT_EMAIL_TO = _resolve_key("ALERT_EMAIL_TO", cfg.alert_email_to)
 
 stripe.api_key = cfg.stripe_secret_key or st.secrets.get("STRIPE_SECRET_KEY", "")
 
@@ -259,6 +276,9 @@ import estated as es
 import attom as at
 import requests
 
+if st.session_state.get("active_workspace_id"):
+    _refresh_integration_keys(st.session_state.active_workspace_id)
+
 connected_count = sum(bool(x) for x in [RENTCAST_APIKEY, ESTATED_TOKEN, ATTOM_APIKEY, OPENAI_API_KEY])
 status_class = "dotlive" if connected_count >= 2 else ("dotwarn" if connected_count == 1 else "dotbad")
 
@@ -333,6 +353,7 @@ ws_ids = [int(w["id"]) for w in wss]
 cur_idx = ws_ids.index(int(st.session_state.active_workspace_id)) if int(st.session_state.active_workspace_id) in ws_ids else 0
 chosen_ws = st.sidebar.selectbox("Workspace", ws_names, index=cur_idx)
 st.session_state.active_workspace_id = int(ws_ids[ws_names.index(chosen_ws)])
+_refresh_integration_keys(st.session_state.active_workspace_id)
 
 st.sidebar.markdown('---')
 st.sidebar.markdown('### 📣 Support')
@@ -1656,7 +1677,36 @@ if page_key == "Settings":
     d.metric("AI", "✅" if OPENAI_API_KEY else "—")
 
     st.divider()
-    st.markdown("#### Secrets (copy/paste into Streamlit)")
+    st.markdown("#### Integration key vault")
+    st.caption("Store keys locally per workspace (SQLite). No external secrets server required. Vault keys fill in when Streamlit secrets are missing.")
+    vault_keys = st.session_state.get("integration_keys", {})
+    with st.form("vault_keys_form"):
+        rk = st.text_input("RentCast API key", type="password", help="Stored" if vault_keys.get("RENTCAST_APIKEY") else "Not stored")
+        ek = st.text_input("Estated token", type="password", help="Stored" if vault_keys.get("ESTATED_TOKEN") else "Not stored")
+        ak = st.text_input("ATTOM API key", type="password", help="Stored" if vault_keys.get("ATTOM_APIKEY") else "Not stored")
+        ok = st.text_input("OpenAI API key", type="password", help="Stored" if vault_keys.get("OPENAI_API_KEY") else "Not stored")
+        sk = st.text_input("SendGrid API key", type="password", help="Stored" if vault_keys.get("SENDGRID_API_KEY") else "Not stored")
+        ae = st.text_input("Alert email to", help="Stored" if vault_keys.get("ALERT_EMAIL_TO") else "Not stored")
+        clear_blanks = st.checkbox("Clear stored keys when left blank")
+        if st.form_submit_button("Save keys to vault", use_container_width=True):
+            updates = {
+                "RENTCAST_APIKEY": rk,
+                "ESTATED_TOKEN": ek,
+                "ATTOM_APIKEY": ak,
+                "OPENAI_API_KEY": ok,
+                "SENDGRID_API_KEY": sk,
+                "ALERT_EMAIL_TO": ae,
+            }
+            for name, value in updates.items():
+                if value:
+                    set_vault_key(st.session_state.active_workspace_id, name, value)
+                elif clear_blanks and vault_keys.get(name):
+                    delete_vault_key(st.session_state.active_workspace_id, name)
+            _refresh_integration_keys(st.session_state.active_workspace_id)
+            st.success("Integration keys updated.")
+
+    st.divider()
+    st.markdown("#### Streamlit secrets (optional fallback)")
     st.code("""RENTCAST_APIKEY = "YOUR_KEY"
 ESTATED_TOKEN = ""
 ATTOM_APIKEY = ""

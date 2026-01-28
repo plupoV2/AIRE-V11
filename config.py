@@ -31,30 +31,39 @@ class AppConfig:
     dev_bypass_key: str = ""      # optional; if set, enables demo bypass via key
     dev_admin_emails: str = ""    # comma-separated emails that always have dev mode
 
+def _secret(s, key: str, default):
+    try:
+        return s.get(key, default)
+    except Exception:
+        return default
+
 def load_config() -> AppConfig:
-    s = st.secrets
+    try:
+        s = st.secrets
+    except Exception:
+        s = {}
     return AppConfig(
-        rentcast_apikey=s.get("RENTCAST_APIKEY",""),
-        estated_token=s.get("ESTATED_TOKEN",""),
-        attom_apikey=s.get("ATTOM_APIKEY",""),
-        openai_api_key=s.get("OPENAI_API_KEY",""),
-        sendgrid_api_key=s.get("SENDGRID_API_KEY",""),
-        alert_email_to=s.get("ALERT_EMAIL_TO",""),
-        access_key=s.get("APP_ACCESS_KEY",""),
-        api_timeout_sec=int(s.get("API_TIMEOUT_SEC", 15)),
-        cache_ttl_sec=int(s.get("CACHE_TTL_SEC", 3600)),
+        rentcast_apikey=_secret(s, "RENTCAST_APIKEY",""),
+        estated_token=_secret(s, "ESTATED_TOKEN",""),
+        attom_apikey=_secret(s, "ATTOM_APIKEY",""),
+        openai_api_key=_secret(s, "OPENAI_API_KEY",""),
+        sendgrid_api_key=_secret(s, "SENDGRID_API_KEY",""),
+        alert_email_to=_secret(s, "ALERT_EMAIL_TO",""),
+        access_key=_secret(s, "APP_ACCESS_KEY",""),
+        api_timeout_sec=int(_secret(s, "API_TIMEOUT_SEC", 15)),
+        cache_ttl_sec=int(_secret(s, "CACHE_TTL_SEC", 3600)),
 
-        stripe_secret_key=s.get("STRIPE_SECRET_KEY",""),
-        stripe_webhook_secret=s.get("STRIPE_WEBHOOK_SECRET",""),
-        stripe_price_id_pro=s.get("STRIPE_PRICE_ID_PRO",""),
-        stripe_price_id_team=s.get("STRIPE_PRICE_ID_TEAM",""),
-        stripe_success_url=s.get("STRIPE_SUCCESS_URL",""),
-        stripe_cancel_url=s.get("STRIPE_CANCEL_URL",""),
-        stripe_portal_return_url=s.get("STRIPE_PORTAL_RETURN_URL",""),
-        stripe_portal_configuration_id=s.get("STRIPE_PORTAL_CONFIGURATION_ID",""),
+        stripe_secret_key=_secret(s, "STRIPE_SECRET_KEY",""),
+        stripe_webhook_secret=_secret(s, "STRIPE_WEBHOOK_SECRET",""),
+        stripe_price_id_pro=_secret(s, "STRIPE_PRICE_ID_PRO",""),
+        stripe_price_id_team=_secret(s, "STRIPE_PRICE_ID_TEAM",""),
+        stripe_success_url=_secret(s, "STRIPE_SUCCESS_URL",""),
+        stripe_cancel_url=_secret(s, "STRIPE_CANCEL_URL",""),
+        stripe_portal_return_url=_secret(s, "STRIPE_PORTAL_RETURN_URL",""),
+        stripe_portal_configuration_id=_secret(s, "STRIPE_PORTAL_CONFIGURATION_ID",""),
 
-        dev_bypass_key=s.get("DEV_BYPASS_KEY",""),
-        dev_admin_emails=s.get("DEV_ADMIN_EMAILS",""),
+        dev_bypass_key=_secret(s, "DEV_BYPASS_KEY",""),
+        dev_admin_emails=_secret(s, "DEV_ADMIN_EMAILS",""),
     )
 
 def validate_config(cfg: AppConfig) -> list[str]:
