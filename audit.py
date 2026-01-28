@@ -9,6 +9,7 @@ import time
 
 @lru_cache(maxsize=1)
 def _db():
+    importlib.invalidate_caches()
     return importlib.import_module("db")
 
 
