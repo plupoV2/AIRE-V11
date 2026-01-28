@@ -2,14 +2,15 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 import json
 
-try:
-    from db import exec_commit, fetchall, fetchone, now
-except ImportError:
-    from db import exec_commit, fetchall, fetchone
-    import time
+import time
+import db
 
-    def now() -> int:
-        return int(time.time())
+exec_commit = db.exec_commit
+fetchall = db.fetchall
+fetchone = db.fetchone
+
+def now() -> int:
+    return int(getattr(db, "now", time.time)())
 
 def migrate():
     exec_commit("""
