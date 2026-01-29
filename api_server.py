@@ -36,11 +36,16 @@ class GradeRequest(BaseModel):
 class GradeResponse(BaseModel):
     address: str
     grade: str
+    grade_detail: str
     score: float
+    score_base: float
+    score_ai: float
+    ai_weight: float
     confidence: float
     verdict: str
     metrics: Dict[str, Any]
     flags: List[str]
+    rationale: List[str]
     provenance: Dict[str, Any]
 
 def _template_by_name(name: str) -> Dict[str, Any]:
@@ -135,11 +140,16 @@ def grade(req: GradeRequest, x_api_key: str = Header(default="")):
     return GradeResponse(
         address=addr,
         grade=out.grade,
+        grade_detail=out.grade_detail,
         score=float(out.score),
+        score_base=float(out.score_base),
+        score_ai=float(out.score_ai),
+        ai_weight=float(out.ai_weight),
         confidence=float(out.confidence),
         verdict=out.verdict,
         metrics=out.metrics,
         flags=out.flags,
+        rationale=out.rationale,
         provenance=prov,
     )
 

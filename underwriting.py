@@ -31,10 +31,16 @@ class DealInputs:
 class DealOutputs:
     score: float
     grade: str
+    grade_detail: str
     verdict: str
     confidence: float
     metrics: Dict[str, Any]
     flags: List[str]
+    rationale: List[str]
+    score_base: float
+    score_ai: float
+    ai_weight: float
+    ai_meta: Dict[str, Any]
     narrative_seed: Dict[str, Any]
 
 def monthly_payment(principal: float, annual_rate: float, years: int) -> Optional[float]:
@@ -175,7 +181,61 @@ def compute_metrics(i: DealInputs) -> Dict[str, Any]:
     m["DebtAnnual"] = model.get("debt0")
     return m
 
-def score_and_grade(i: DealInputs, m: Dict[str, Any]) -> Tuple[float, float, List[str], str, str]:
+def score_to_grade(score: float) -> str:
+    if score >= 90:
+        return "A"
+    if score >= 80:
+        return "B"
+    if score >= 70:
+        return "C"
+    if score >= 60:
+        return "D"
+    return "F"
+
+def score_to_grade_detail(score: float) -> str:
+    letter = score_to_grade(score)
+    if letter == "A":
+        if score >= 97:
+            return "A+"
+        if score >= 93:
+            return "A"
+        return "A-"
+    if letter == "B":
+        if score >= 87:
+            return "B+"
+        if score >= 83:
+            return "B"
+        return "B-"
+    if letter == "C":
+        if score >= 77:
+            return "C+"
+        if score >= 73:
+            return "C"
+        return "C-"
+    if letter == "D":
+        if score >= 67:
+            return "D+"
+        if score >= 63:
+            return "D"
+        return "D-"
+    if score >= 55:
+        return "F+"
+    if score >= 50:
+        return "F"
+    return "F-"
+
+def verdict_from_score(score: float) -> str:
+    if score >= 90:
+        return "BUY"
+    if score >= 80:
+        return "BUY (Selective)"
+    if score >= 70:
+        return "WATCH / NEGOTIATE"
+    if score >= 60:
+        return "PASS (Most cases)"
+    return "AVOID"
+
+def score_and_grade(i: DealInputs, m: Dict[str, Any]) -> Tuple[float, float, List[str], List[str]]:
     # confidence: how complete the core underwriting data is
     core = 0
     if i.price is not None: core += 1
@@ -185,6 +245,7 @@ def score_and_grade(i: DealInputs, m: Dict[str, Any]) -> Tuple[float, float, Lis
     conf = min(1.0, 0.25 + 0.18*core)
 
     flags: List[str] = []
+    reasons: List[str] = ["Base underwriting starts at 50/100."]
     score = 50.0
 
     cap = m.get("CapRate")
@@ -195,58 +256,159 @@ def score_and_grade(i: DealInputs, m: Dict[str, Any]) -> Tuple[float, float, Lis
 
     # Yield
     if cap is not None:
-        if cap >= 0.08: score += 12
-        elif cap >= 0.06: score += 7
-        elif cap >= 0.045: score += 2
-        else: score -= 6; flags.append("Low cap rate")
+        if cap >= 0.08:
+            score += 12
+            reasons.append(f"Cap rate {cap:.2%} ≥ 8% adds +12.")
+        elif cap >= 0.06:
+            score += 7
+            reasons.append(f"Cap rate {cap:.2%} ≥ 6% adds +7.")
+        elif cap >= 0.045:
+            score += 2
+            reasons.append(f"Cap rate {cap:.2%} ≥ 4.5% adds +2.")
+        else:
+            score -= 6
+            flags.append("Low cap rate")
+            reasons.append(f"Cap rate {cap:.2%} < 4.5% subtracts -6.")
     else:
         flags.append("Missing cap-rate inputs")
+        reasons.append("Cap rate unavailable (missing price/rent/expenses).")
 
     if coc is not None:
-        if coc >= 0.12: score += 10
-        elif coc >= 0.08: score += 6
-        elif coc >= 0.05: score += 2
-        else: score -= 6; flags.append("Low cash-on-cash")
+        if coc >= 0.12:
+            score += 10
+            reasons.append(f"Cash-on-cash {coc:.2%} ≥ 12% adds +10.")
+        elif coc >= 0.08:
+            score += 6
+            reasons.append(f"Cash-on-cash {coc:.2%} ≥ 8% adds +6.")
+        elif coc >= 0.05:
+            score += 2
+            reasons.append(f"Cash-on-cash {coc:.2%} ≥ 5% adds +2.")
+        else:
+            score -= 6
+            flags.append("Low cash-on-cash")
+            reasons.append(f"Cash-on-cash {coc:.2%} < 5% subtracts -6.")
     else:
         flags.append("Missing CoC inputs")
+        reasons.append("Cash-on-cash unavailable (missing rent/expenses/price).")
 
     if dscr is not None:
-        if dscr >= 1.35: score += 8
-        elif dscr >= 1.20: score += 5
-        elif dscr >= 1.05: score += 1
-        else: score -= 12; flags.append("DSCR risk")
+        if dscr >= 1.35:
+            score += 8
+            reasons.append(f"DSCR {dscr:.2f} ≥ 1.35 adds +8.")
+        elif dscr >= 1.20:
+            score += 5
+            reasons.append(f"DSCR {dscr:.2f} ≥ 1.20 adds +5.")
+        elif dscr >= 1.05:
+            score += 1
+            reasons.append(f"DSCR {dscr:.2f} ≥ 1.05 adds +1.")
+        else:
+            score -= 12
+            flags.append("DSCR risk")
+            reasons.append(f"DSCR {dscr:.2f} < 1.05 subtracts -12.")
     else:
         flags.append("Missing DSCR inputs")
+        reasons.append("DSCR unavailable (missing NOI or debt service).")
 
     # Forward returns
     if irr_v is not None:
-        if irr_v >= 0.18: score += 10
-        elif irr_v >= 0.14: score += 7
-        elif irr_v >= 0.10: score += 3
-        else: score -= 7; flags.append("Low IRR")
+        if irr_v >= 0.18:
+            score += 10
+            reasons.append(f"IRR {irr_v:.2%} ≥ 18% adds +10.")
+        elif irr_v >= 0.14:
+            score += 7
+            reasons.append(f"IRR {irr_v:.2%} ≥ 14% adds +7.")
+        elif irr_v >= 0.10:
+            score += 3
+            reasons.append(f"IRR {irr_v:.2%} ≥ 10% adds +3.")
+        else:
+            score -= 7
+            flags.append("Low IRR")
+            reasons.append(f"IRR {irr_v:.2%} < 10% subtracts -7.")
     else:
         flags.append("IRR unavailable (needs price + rent + expenses)")
+        reasons.append("IRR unavailable (needs price + rent + expenses).")
 
     # Price momentum from last sale
     if chg is not None:
         if chg <= -0.05:
-            score += 3; flags.append("Discount vs last sale")
+            score += 3
+            flags.append("Discount vs last sale")
+            reasons.append(f"Price is {abs(chg):.1%} below last sale adds +3.")
         elif chg >= 0.25:
-            score -= 6; flags.append("Big run-up vs last sale")
+            score -= 6
+            flags.append("Big run-up vs last sale")
+            reasons.append(f"Price is {chg:.1%} above last sale subtracts -6.")
 
     score = max(0.0, min(100.0, score))
+    reasons.append(f"Base underwriting score: {score:.1f}/100.")
 
-    if score >= 90: grade, verdict = "A", "BUY"
-    elif score >= 80: grade, verdict = "B", "BUY (Selective)"
-    elif score >= 70: grade, verdict = "C", "WATCH / NEGOTIATE"
-    elif score >= 60: grade, verdict = "D", "PASS (Most cases)"
-    else: grade, verdict = "F", "AVOID"
+    return score, conf, flags, reasons
 
-    return score, conf, flags, grade, verdict
+def _ai_payload(i: DealInputs, m: Dict[str, Any]) -> Tuple[Dict[str, Any], float]:
+    price = i.price or 0.0
+    rent = i.monthly_rent or 0.0
+    annual_rent = rent * 12.0 if rent else 0.0
+    rent_to_price = (annual_rent / price) if (price and annual_rent) else None
+    price_to_rent = (price / annual_rent) if (price and annual_rent) else None
+    ai_inputs = {
+        "cap_rate": m.get("CapRate"),
+        "cash_on_cash": m.get("CoC"),
+        "dscr": m.get("DSCR"),
+        "rent_to_price": rent_to_price,
+        "price_to_rent": price_to_rent,
+    }
+    present = sum(1 for v in ai_inputs.values() if v is not None)
+    completeness = present / max(1, len(ai_inputs))
+    return {
+        "underwriting": {
+            "cap_rate": ai_inputs["cap_rate"],
+            "cash_on_cash": ai_inputs["cash_on_cash"],
+            "dscr": ai_inputs["dscr"],
+            "rent_to_price": ai_inputs["rent_to_price"],
+            "price_to_rent": ai_inputs["price_to_rent"],
+        },
+        "market": {},
+        "risk": {},
+    }, completeness
+
+def _driver_label(feature: str) -> str:
+    labels = {
+        "cap_rate": "Cap rate",
+        "cash_on_cash": "Cash-on-cash",
+        "dscr": "DSCR",
+        "rent_to_price": "Rent-to-price",
+        "price_to_rent": "Price-to-rent",
+        "year_built_norm": "Year built",
+        "dom_norm": "Days on market",
+        "crime_norm": "Crime",
+        "school_norm": "School score",
+        "market_growth_norm": "Market growth",
+        "volatility_norm": "Volatility",
+        "liquidity_norm": "Liquidity",
+    }
+    return labels.get(feature, feature.replace("_", " ").title())
 
 def run_underwriting(i: DealInputs) -> DealOutputs:
     m = compute_metrics(i)
-    score, conf, flags, grade, verdict = score_and_grade(i, m)
+    base_score, conf, flags, reasons = score_and_grade(i, m)
+    ai_payload, ai_completeness = _ai_payload(i, m)
+    ai_grade, ai_score, ai_conf, ai_meta = grade_with_model(ai_payload)
+    ai_weight = 0.0 if ai_completeness <= 0 else min(0.35, 0.15 + 0.20 * ai_completeness)
+    score = base_score if ai_weight <= 0 else (base_score * (1 - ai_weight) + ai_score * ai_weight)
+    score = max(0.0, min(100.0, float(score)))
+    grade = score_to_grade(score)
+    grade_detail = score_to_grade_detail(score)
+    verdict = verdict_from_score(score)
+    reasons.append(
+        f"AI score {ai_score:.1f}/100 blended at {ai_weight:.0%} weight → final {score:.1f}/100."
+    )
+    ai_drivers = []
+    for item in ai_meta.get("top_drivers", [])[:5]:
+        feat = _driver_label(str(item.get("feature")))
+        contrib = float(item.get("contribution") or 0.0)
+        direction = "supports" if contrib >= 0 else "pressures"
+        ai_drivers.append(f"AI driver: {feat} {direction} the grade ({contrib:+.2f}).")
+    reasons.extend(ai_drivers)
     seed = {
         "address": i.address,
         "price": i.price,
@@ -264,9 +426,29 @@ def run_underwriting(i: DealInputs) -> DealOutputs:
         "flags": flags,
         "grade": grade,
         "score": score,
-        "confidence": conf
+        "confidence": conf,
+        "grade_detail": grade_detail,
+        "score_base": base_score,
+        "score_ai": ai_score,
+        "ai_weight": ai_weight,
+        "rationale": reasons,
+        "ai_meta": ai_meta,
     }
-    return DealOutputs(score=score, grade=grade, verdict=verdict, confidence=conf, metrics=m, flags=flags, narrative_seed=seed)
+    return DealOutputs(
+        score=score,
+        grade=grade,
+        grade_detail=grade_detail,
+        verdict=verdict,
+        confidence=conf,
+        metrics=m,
+        flags=flags,
+        rationale=reasons,
+        score_base=base_score,
+        score_ai=ai_score,
+        ai_weight=ai_weight,
+        ai_meta=ai_meta,
+        narrative_seed=seed,
+    )
 
 def grade_with_model(payload: Dict[str, Any], workspace_id: int = 0) -> Tuple[str, float, float, Dict[str, Any]]:
     """Enterprise-safe scorer.
