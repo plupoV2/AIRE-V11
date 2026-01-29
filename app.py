@@ -17,7 +17,19 @@ from lock_screen import render_lock
 from feedback import add_feedback, list_feedback
 from model_registry import list_models, create_candidate_model, activate_model, get_active_model
 import learning
-import audit
+try:
+    import audit
+except Exception:
+    class _AuditFallback:
+        @staticmethod
+        def log_event(*args, **kwargs):
+            return 0
+
+        @staticmethod
+        def list_events(*args, **kwargs):
+            return []
+
+    audit = _AuditFallback()
 from key_vault import get_keys as get_vault_keys, set_key as set_vault_key, delete_key as delete_vault_key
 
 def count_linked_outcomes(workspace_id: int) -> int:
