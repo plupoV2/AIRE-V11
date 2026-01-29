@@ -6,14 +6,6 @@ import importlib
 from functools import lru_cache
 import time
 
-try:
-    from db import exec_commit as _exec_commit, fetchall as _fetchall, fetchone as _fetchone, now as _now
-except Exception:
-    _exec_commit = None
-    _fetchall = None
-    _fetchone = None
-    _now = None
-
 
 @lru_cache(maxsize=1)
 def _db():
@@ -22,26 +14,18 @@ def _db():
 
 
 def exec_commit(*args, **kwargs):
-    if _exec_commit:
-        return _exec_commit(*args, **kwargs)
     return _db().exec_commit(*args, **kwargs)
 
 
 def fetchall(*args, **kwargs):
-    if _fetchall:
-        return _fetchall(*args, **kwargs)
     return _db().fetchall(*args, **kwargs)
 
 
 def fetchone(*args, **kwargs):
-    if _fetchone:
-        return _fetchone(*args, **kwargs)
     return _db().fetchone(*args, **kwargs)
 
 
 def now() -> int:
-    if _now:
-        return int(_now())
     db = _db()
     return int(getattr(db, "now", time.time)())
 
